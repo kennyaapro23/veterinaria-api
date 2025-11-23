@@ -81,6 +81,9 @@
     "extra": {
         "laravel": {
             "dont-discover": []
+        },
+        "heroku-php": {
+            "document-root": "public"
         }
     },
     "config": {
