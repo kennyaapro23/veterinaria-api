@@ -18,10 +18,15 @@ class MascotaController extends Controller
     public function index(Request $request)
     {
         try {
-        $user = auth()->user();
+            $user = auth()->user();
 
-        // Asegurar que si es cliente y no tiene perfil, se cree automáticamente
-        if ($user->tipo_usuario === 'cliente' && !$user->cliente) {
+            if (! $user) {
+                \Log::warning('Unauthenticated request to MascotaController@index');
+                return response()->json(['error' => 'Unauthenticated'], 401);
+            }
+
+            // Asegurar que si es cliente y no tiene perfil, se cree automáticamente
+            if ($user->tipo_usuario === 'cliente' && !$user->cliente) {
             Cliente::create([
                 'user_id' => $user->id,
                 'nombre' => $user->name ?? 'Cliente',
