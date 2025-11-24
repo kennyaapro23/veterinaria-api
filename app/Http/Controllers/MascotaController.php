@@ -43,8 +43,13 @@ class MascotaController extends Controller
             }
             
             // --- Punto Crítico 2: Authorization Policy ---
-            // Si el error 500 viene de aquí, se capturará y devolverá 403.
-            $this->authorize('viewAny', Mascota::class); 
+            // Permitimos explícitamente que los usuarios 'cliente' LISTEN sus mascotas
+            // (si no tienen, devolveremos lista vacía). Solo veterianario/recepcion
+            // necesitan la comprobación de policy global.
+            if (! in_array($user->tipo_usuario, ['cliente'])) {
+                // Para veterinario/recepcion usamos la policy centralizada
+                $this->authorize('viewAny', Mascota::class);
+            }
 
             $query = Mascota::with(['cliente']);
 
