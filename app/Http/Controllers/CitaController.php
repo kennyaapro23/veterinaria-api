@@ -6,6 +6,7 @@ use App\Models\Cita;
 use App\Models\Mascota;
 use App\Models\Servicio;
 use App\Models\Notificacion;
+use App\Models\Cliente;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -17,15 +18,22 @@ class CitaController extends Controller
         $user = auth()->user();
         $query = Cita::with(['cliente', 'mascota', 'veterinario', 'servicios']);
 
+        // Si el usuario es cliente, asegurar que tenga Cliente (auto-create si falta)
+        if ($user->tipo_usuario === 'cliente' && !$user->cliente) {
+            Cliente::create([
+                'user_id' => $user->id,
+                'nombre' => $user->name ?? 'Cliente',
+                'email' => $user->email ?? null,
+                'es_walk_in' => false,
+            ]);
+            $user->load('cliente');
+        }
+
         // Filtro por ROL
         if ($user->tipo_usuario === 'cliente') {
             // CLIENTE: Solo ve sus propias citas
             $cliente = $user->cliente;
-            if (!$cliente) {
-                return response()->json(['citas' => []]);
-            }
             $query->where('cliente_id', $cliente->id);
-            
         } elseif ($user->tipo_usuario === 'veterinario') {
             // VETERINARIO: Solo ve sus propias citas (a menos que se filtre por otro)
             $veterinario = $user->veterinario;
@@ -120,9 +128,14 @@ class CitaController extends Controller
             $cliente = $user->cliente;
             
             if (!$cliente) {
-                return response()->json([
-                    'error' => 'No tienes un perfil de cliente asociado'
-                ], 403);
+                // Crear perfil Cliente automáticamente si falta
+                $cliente = Cliente::create([
+                    'user_id' => $user->id,
+                    'nombre' => $user->name ?? 'Cliente',
+                    'email' => $user->email ?? null,
+                    'es_walk_in' => false,
+                ]);
+                $user->load('cliente');
             }
             
             // Validación para CLIENTE (no requiere cliente_id, se asigna automáticamente)
@@ -291,6 +304,17 @@ class CitaController extends Controller
         $cita = Cita::with(['cliente', 'mascota', 'veterinario', 'servicios', 'historialMedicos'])
             ->findOrFail($id);
 
+        // Asegurar cliente para usuarios tipo 'cliente'
+        if ($user->tipo_usuario === 'cliente' && !$user->cliente) {
+            Cliente::create([
+                'user_id' => $user->id,
+                'nombre' => $user->name ?? 'Cliente',
+                'email' => $user->email ?? null,
+                'es_walk_in' => false,
+            ]);
+            $user->load('cliente');
+        }
+
         // Verificar permisos por ROL
         if ($user->tipo_usuario === 'cliente') {
             $cliente = $user->cliente;
@@ -315,6 +339,15 @@ class CitaController extends Controller
     public function update(Request $request, $id)
     {
         $user = auth()->user();
+        if ($user->tipo_usuario === 'cliente' && !$user->cliente) {
+            Cliente::create([
+                'user_id' => $user->id,
+                'nombre' => $user->name ?? 'Cliente',
+                'email' => $user->email ?? null,
+                'es_walk_in' => false,
+            ]);
+            $user->load('cliente');
+        }
         $cita = Cita::findOrFail($id);
         
         // CLIENTE: Solo puede cancelar su propia cita
@@ -469,6 +502,15 @@ class CitaController extends Controller
     public function destroy($id)
     {
         $user = auth()->user();
+        if ($user->tipo_usuario === 'cliente' && !$user->cliente) {
+            Cliente::create([
+                'user_id' => $user->id,
+                'nombre' => $user->name ?? 'Cliente',
+                'email' => $user->email ?? null,
+                'es_walk_in' => false,
+            ]);
+            $user->load('cliente');
+        }
         $cita = Cita::findOrFail($id);
 
         // Verificar permisos por ROL

@@ -40,41 +40,24 @@ class FirebaseAuthController extends Controller
             // Obtener información del usuario de Firebase
             $firebaseUser = $this->firebaseAuth->getUser($firebaseUid);
 
-            // Buscar o crear el usuario en la base de datos local
+            // Buscar el usuario en la base de datos local por firebase_uid
+            // IMPORTANTE: No crear usuarios automáticamente desde Firebase en este flujo.
+            // Si no existe un usuario local, devolver un error instructivo para que
+            // el cliente utilice el registro tradicional (`/auth/register`).
             $user = User::where('firebase_uid', $firebaseUid)->first();
 
-            if (!$user) {
-                // Crear usuario si no existe
-                $user = User::create([
-                    'firebase_uid' => $firebaseUid,
-                    // The users table uses `name` and `tipo_usuario` columns
-                    'name' => $firebaseUser->displayName ?? $request->additional_data['nombre'] ?? 'Usuario',
-                    'email' => $firebaseUser->email,
-                    'telefono' => $firebaseUser->phoneNumber ?? $request->additional_data['telefono'] ?? null,
-                    'tipo_usuario' => $request->rol ?? 'cliente',
-                    'email_verified_at' => $firebaseUser->emailVerified ? now() : null,
-                ]);
-
-                // Crear perfil según el tipo_usuario (cliente/veterinario)
-                if ($user->tipo_usuario === 'cliente') {
-                    Cliente::create([
-                        'user_id' => $user->id,
-                        // Cliente table expects `nombre`
-                        'nombre' => $user->name,
-                        'email' => $user->email,
-                        'telefono' => $user->telefono,
-                        'direccion' => $request->additional_data['direccion'] ?? null,
-                    ]);
-                } elseif ($user->tipo_usuario === 'veterinario') {
-                    Veterinario::create([
-                        'user_id' => $user->id,
-                        'nombre' => $user->name,
-                        'email' => $user->email,
-                        'telefono' => $user->telefono,
-                        'especialidad' => $request->additional_data['especialidad'] ?? 'General',
-                        'licencia' => $request->additional_data['licencia'] ?? null,
-                    ]);
+            if (! $user) {
+                // Intentar buscar por email como ayuda (si existe el email en BD, sugerir link)
+                $localByEmail = null;
+                if ($firebaseUser->email) {
+                    $localByEmail = User::where('email', $firebaseUser->email)->first();
                 }
+
+                return response()->json([
+                    'error' => 'Usuario no registrado en el sistema',
+                    'message' => 'No se creará un usuario automático desde Firebase. Registra una cuenta usando /auth/register o contacta al soporte.',
+                    'existing_local_by_email' => $localByEmail ? true : false,
+                ], 422);
             }
 
             // Crear token de Sanctum para la API

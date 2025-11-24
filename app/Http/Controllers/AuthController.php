@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Cliente;
+use App\Models\Veterinario;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
@@ -27,6 +29,7 @@ class AuthController extends Controller
 
         $user = User::create([
             'name' => $data['name'],
+            'tipo_usuario' => $data['role'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
         ]);
@@ -35,6 +38,22 @@ class AuthController extends Controller
         $user->assignRole($data['role']);
 
         $token = $user->createToken('api-token')->plainTextToken;
+
+        // Crear perfil asociado si aplica
+        if ($data['role'] === 'cliente') {
+            Cliente::create([
+                'user_id' => $user->id,
+                'nombre' => $user->name,
+                'email' => $user->email,
+            ]);
+        } elseif ($data['role'] === 'veterinario') {
+            Veterinario::create([
+                'user_id' => $user->id,
+                'nombre' => $user->name,
+                'email' => $user->email,
+                'especialidad' => 'General',
+            ]);
+        }
 
         return response()->json(['user' => $user, 'token' => $token], 201);
     }
