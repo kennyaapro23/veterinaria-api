@@ -8,6 +8,7 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use App\Models\User;
 
 class MascotaController extends Controller
 {
@@ -17,6 +18,18 @@ class MascotaController extends Controller
     public function index(Request $request)
     {
         $user = auth()->user();
+
+        // Asegurar que si es cliente y no tiene perfil, se cree automáticamente
+        if ($user->tipo_usuario === 'cliente' && !$user->cliente) {
+            Cliente::create([
+                'user_id' => $user->id,
+                'nombre' => $user->name ?? 'Cliente',
+                'email' => $user->email ?? null,
+                'es_walk_in' => false,
+            ]);
+            // refrescar relación
+            $user->load('cliente');
+        }
 
         // Authorization: anyone with a role that can view mascotas
         $this->authorize('viewAny', Mascota::class);
@@ -76,9 +89,13 @@ class MascotaController extends Controller
             $cliente = $user->cliente;
             
             if (!$cliente) {
-                return response()->json([
-                    'error' => 'No tienes un perfil de cliente asociado'
-                ], 403);
+                // Si el usuario cliente no tiene perfil de Cliente, crear uno automáticamente
+                $cliente = Cliente::create([
+                    'user_id' => $user->id,
+                    'nombre' => $user->name ?? 'Cliente',
+                    'email' => $user->email ?? null,
+                    'es_walk_in' => false,
+                ]);
             }
             
             // Validación sin requerir cliente_id (se asigna automáticamente)
@@ -151,6 +168,17 @@ class MascotaController extends Controller
     {
         $user = auth()->user();
 
+        // Asegurar cliente existente para policies que lo requieran
+        if ($user->tipo_usuario === 'cliente' && !$user->cliente) {
+            Cliente::create([
+                'user_id' => $user->id,
+                'nombre' => $user->name ?? 'Cliente',
+                'email' => $user->email ?? null,
+                'es_walk_in' => false,
+            ]);
+            $user->load('cliente');
+        }
+
         $mascota = Mascota::with([
             'cliente',
             'historialMedicos' => function ($query) {
@@ -177,6 +205,15 @@ class MascotaController extends Controller
     public function update(Request $request, $id)
     {
         $user = auth()->user();
+        if ($user->tipo_usuario === 'cliente' && !$user->cliente) {
+            Cliente::create([
+                'user_id' => $user->id,
+                'nombre' => $user->name ?? 'Cliente',
+                'email' => $user->email ?? null,
+                'es_walk_in' => false,
+            ]);
+            $user->load('cliente');
+        }
         $mascota = Mascota::findOrFail($id);
 
         $this->authorize('update', $mascota);
@@ -239,6 +276,15 @@ class MascotaController extends Controller
     public function destroy($id)
     {
         $user = auth()->user();
+        if ($user->tipo_usuario === 'cliente' && !$user->cliente) {
+            Cliente::create([
+                'user_id' => $user->id,
+                'nombre' => $user->name ?? 'Cliente',
+                'email' => $user->email ?? null,
+                'es_walk_in' => false,
+            ]);
+            $user->load('cliente');
+        }
         $mascota = Mascota::findOrFail($id);
 
         $this->authorize('delete', $mascota);
