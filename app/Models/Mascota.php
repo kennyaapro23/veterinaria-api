@@ -8,7 +8,7 @@ use Illuminate\Support\Str;
 use Carbon\Carbon;
 
 // IMPORTS DE RELACIONES AÑADIDOS/CORREGIDOS
-use App\Models\User; // Asumimos que el cliente es el modelo User por defecto.
+use App\Models\Cliente;
 use App\Models\HistorialMedico;
 use App\Models\Cita;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -61,8 +61,7 @@ class Mascota extends Model
 
     public function cliente(): BelongsTo
     {
-        // ✅ Corregido para usar User::class si es el modelo de cliente/usuario
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(Cliente::class);
     }
 
     public function historialMedicos(): HasMany

@@ -15,6 +15,11 @@ use Illuminate\Support\Facades\Storage;
 
 class MascotaController extends Controller
 {
+    public function __construct()
+    {
+        // Centralizar autorizaciones de resource con la policy
+        $this->authorizeResource(Mascota::class, 'mascota');
+    }
     /**
      * Listar mascotas
      */
@@ -201,7 +206,7 @@ class MascotaController extends Controller
     /**
      * Ver mascota
      */
-    public function show($id)
+    public function show(Mascota $mascota)
     {
         $user = auth()->user();
 
@@ -224,7 +229,7 @@ class MascotaController extends Controller
             'citas' => function ($query) {
                 $query->latest()->limit(10)->with(['veterinario', 'servicios']);
             }
-        ])->findOrFail($id);
+        ])->findOrFail($mascota->id);
 
         try {
             // Policy will check permissions (cliente only their own; vet/recepcion can view)

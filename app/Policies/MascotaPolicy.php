@@ -19,13 +19,11 @@ class MascotaPolicy
      */
     public function viewAny(User $user)
     {
-        // ----------------------------------------------------
-        // ¡SOLUCIÓN! Retornar true si el usuario está autenticado.
-        // Si necesitas lógica de roles (Admin/Vet), la puedes añadir aquí:
-        // return $user->esAdmin() || $user->esVeterinario();
-        // Pero para salir del error 403, retornamos true si está autenticado:
-        // ----------------------------------------------------
-        return true; 
+        // Permitimos que usuarios autenticados puedan llamar al endpoint.
+        // El filtrado por cliente (solo ver sus mascotas) se aplicará en el
+        // controlador (index) para clientes; roles como 'veterinario'/'recepcion'
+        // podrán ver todas las mascotas.
+        return (bool) $user;
     }
 
     /**
@@ -37,12 +35,39 @@ class MascotaPolicy
      */
     public function view(User $user, Mascota $mascota)
     {
-        // Esto permite ver la mascota si es el dueño O si tiene permisos generales
-        return $user->id === $mascota->cliente_id || $user->esAdmin() || $user->esVeterinario();
+        // Si el usuario es cliente, comparar con su perfil cliente->id
+        if ($user->tipo_usuario === 'cliente') {
+            $cliente = $user->cliente;
+            return $cliente && $mascota->cliente_id === $cliente->id;
+        }
+
+        // Veterinario/reception/admin pueden ver cualquier mascota
+        return in_array($user->tipo_usuario, ['veterinario', 'recepcion', 'admin']);
     }
     
     // ... el resto de métodos (create, update, delete)
-    public function create(User $user) { return true; }
-    public function update(User $user, Mascota $mascota) { return $user->id === $mascota->cliente_id; }
-    public function delete(User $user, Mascota $mascota) { return $user->id === $mascota->cliente_id; }
+    public function create(User $user)
+    {
+        return in_array($user->tipo_usuario, ['cliente', 'veterinario', 'recepcion']);
+    }
+
+    public function update(User $user, Mascota $mascota)
+    {
+        if ($user->tipo_usuario === 'cliente') {
+            $cliente = $user->cliente;
+            return $cliente && $mascota->cliente_id === $cliente->id;
+        }
+
+        return in_array($user->tipo_usuario, ['veterinario', 'recepcion']);
+    }
+
+    public function delete(User $user, Mascota $mascota)
+    {
+        if ($user->tipo_usuario === 'cliente') {
+            $cliente = $user->cliente;
+            return $cliente && $mascota->cliente_id === $cliente->id;
+        }
+
+        return in_array($user->tipo_usuario, ['veterinario', 'recepcion']);
+    }
 }
