@@ -5,8 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
-use App\Models\User;
-use App\Models\Especie;
+use Carbon\Carbon;
+
+// IMPORTS DE RELACIONES AÑADIDOS/CORREGIDOS
+use App\Models\User; // Asumimos que el cliente es el modelo User por defecto.
+use App\Models\HistorialMedico;
+use App\Models\Cita;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Mascota extends Model
 {
@@ -27,11 +33,14 @@ class Mascota extends Model
         'condiciones_medicas',
         'tipo_sangre',
         'microchip',
+        'public_id',
     ];
 
     protected $casts = [
         'fecha_nacimiento' => 'date',
     ];
+
+    protected $appends = ['edad']; 
 
     protected static function boot()
     {
@@ -42,38 +51,26 @@ class Mascota extends Model
                 $model->public_id = (string) Str::uuid();
             }
             
-            // ✅ Generar QR automáticamente al crear
             if (empty($model->qr_code)) {
                 $model->qr_code = 'VETCARE_PET_' . Str::uuid();
             }
         });
     }
 
-    // ✅ Método para regenerar QR si es necesario
-    public function regenerarQR()
+    // RELACIONES
+
+    public function cliente(): BelongsTo
     {
-        $this->qr_code = 'VETCARE_PET_' . Str::uuid();
-        $this->save();
-        return $this->qr_code;
+        // ✅ Corregido para usar User::class si es el modelo de cliente/usuario
+        return $this->belongsTo(User::class);
     }
 
-    // ✅ Scope para buscar por QR
-    public function scopePorQR($query, $qrCode)
-    {
-        return $query->where('qr_code', $qrCode);
-    }
-
-    public function cliente()
-    {
-        return $this->belongsTo(Cliente::class);
-    }
-
-    public function historialMedicos()
+    public function historialMedicos(): HasMany
     {
         return $this->hasMany(HistorialMedico::class);
     }
 
-    public function citas()
+    public function citas(): HasMany
     {
         return $this->hasMany(Cita::class);
     }
@@ -82,23 +79,40 @@ class Mascota extends Model
     /**
      * Accessor para calcular edad de la mascota
      */
-    public function getEdadAttribute()
+    public function getEdadAttribute(): ?string
     {
         if (!$this->fecha_nacimiento) {
             return null;
         }
 
-        $nacimiento = \Carbon\Carbon::parse($this->fecha_nacimiento);
-        $ahora = \Carbon\Carbon::now();
+        $nacimiento = Carbon::parse($this->fecha_nacimiento);
+        $ahora = Carbon::now();
 
         $years = $nacimiento->diffInYears($ahora);
         $months = $nacimiento->copy()->addYears($years)->diffInMonths($ahora);
 
         if ($years > 0) {
-            return $years . ' año' . ($years > 1 ? 's' : '') . 
-                   ($months > 0 ? ' y ' . $months . ' mes' . ($months > 1 ? 'es' : '') : '');
+            $edadString = $years . ' año' . ($years > 1 ? 's' : '');
+            if ($months > 0) {
+                $edadString .= ' y ' . $months . ' mes' . ($months > 1 ? 'es' : '');
+            }
+            return $edadString;
         } else {
             return $months . ' mes' . ($months > 1 ? 'es' : '');
         }
+    }
+    
+    // MÉTODOS Y SCOPES ADICIONALES
+
+    public function regenerarQR()
+    {
+        $this->qr_code = 'VETCARE_PET_' . Str::uuid();
+        $this->save();
+        return $this->qr_code;
+    }
+
+    public function scopePorQR($query, $qrCode)
+    {
+        return $query->where('qr_code', $qrCode);
     }
 }
