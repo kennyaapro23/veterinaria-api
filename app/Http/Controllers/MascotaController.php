@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Mascota;
 use App\Models\Cliente;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -16,6 +17,9 @@ class MascotaController extends Controller
     public function index(Request $request)
     {
         $user = auth()->user();
+
+        // Authorization: anyone with a role that can view mascotas
+        $this->authorize('viewAny', Mascota::class);
         $query = Mascota::with(['cliente']);
 
         // Si el usuario es CLIENTE, solo mostrar SUS mascotas
@@ -64,6 +68,7 @@ class MascotaController extends Controller
     public function store(Request $request)
     {
         $user = auth()->user();
+        $this->authorize('create', Mascota::class);
         
         // Si es CLIENTE, usar automáticamente su cliente_id
         // (no puede crear mascotas para otros clientes)
@@ -145,7 +150,7 @@ class MascotaController extends Controller
     public function show($id)
     {
         $user = auth()->user();
-        
+
         $mascota = Mascota::with([
             'cliente',
             'historialMedicos' => function ($query) {
@@ -156,16 +161,8 @@ class MascotaController extends Controller
             }
         ])->findOrFail($id);
 
-        // Si es CLIENTE, verificar que la mascota le pertenece
-        if ($user->tipo_usuario === 'cliente') {
-            $cliente = $user->cliente;
-            
-            if (!$cliente || $mascota->cliente_id !== $cliente->id) {
-                return response()->json([
-                    'error' => 'No tienes permiso para ver esta mascota'
-                ], 403);
-            }
-        }
+        // Policy will check permissions (cliente only their own; vet/recepcion can view)
+        $this->authorize('view', $mascota);
 
         // Agregar edad calculada
         $data = $mascota->toArray();
@@ -182,16 +179,7 @@ class MascotaController extends Controller
         $user = auth()->user();
         $mascota = Mascota::findOrFail($id);
 
-        // Si es CLIENTE, verificar que la mascota le pertenece
-        if ($user->tipo_usuario === 'cliente') {
-            $cliente = $user->cliente;
-            
-            if (!$cliente || $mascota->cliente_id !== $cliente->id) {
-                return response()->json([
-                    'error' => 'No tienes permiso para editar esta mascota'
-                ], 403);
-            }
-        }
+        $this->authorize('update', $mascota);
 
         $validated = $request->validate([
             'cliente_id' => 'sometimes|required|exists:clientes,id',
@@ -253,16 +241,7 @@ class MascotaController extends Controller
         $user = auth()->user();
         $mascota = Mascota::findOrFail($id);
 
-        // Si es CLIENTE, verificar que la mascota le pertenece
-        if ($user->tipo_usuario === 'cliente') {
-            $cliente = $user->cliente;
-            
-            if (!$cliente || $mascota->cliente_id !== $cliente->id) {
-                return response()->json([
-                    'error' => 'No tienes permiso para eliminar esta mascota'
-                ], 403);
-            }
-        }
+        $this->authorize('delete', $mascota);
 
         // Verificar si tiene historial médico o citas
         if ($mascota->historialMedicos()->count() > 0) {

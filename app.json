@@ -1,0 +1,12 @@
+{
+  "name": "veterinaria-api",
+  "description": "VetCare Laravel API",
+  "scripts": {
+    "postdeploy": "php artisan migrate --force"
+  },
+  "env": {
+    "APP_ENV": { "value": "production" },
+    "APP_DEBUG": { "value": "false" }
+  },
+  "addons": ["heroku-postgresql"]
+}
