@@ -17,6 +17,7 @@ class MascotaController extends Controller
      */
     public function index(Request $request)
     {
+        try {
         $user = auth()->user();
 
         // Asegurar que si es cliente y no tiene perfil, se cree automáticamente
@@ -73,6 +74,12 @@ class MascotaController extends Controller
         $mascotas = $query->orderBy('created_at', 'desc')->paginate(20);
 
         return response()->json($mascotas);
+        } catch (\Exception $e) {
+            \Log::error('MascotaController@index error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return response()->json([
+                'error' => 'Server error while listing mascotas',
+            ], 500);
+        }
     }
 
     /**
