@@ -146,9 +146,9 @@ class FacturaController extends Controller
                 'detalles' => $detalles,
             ]);
 
-            // Marcar la cita como completada si corresponde (evita dejarla en pendiente)
-            if ($cita->estado !== 'completada') {
-                $cita->update(['estado' => 'completada']);
+            // Marcar la cita como atendida si corresponde (evita dejarla en pendiente)
+            if ($cita->estado !== 'atendida') {
+                $cita->update(['estado' => 'atendida']);
             }
 
             // Auditoría
@@ -330,7 +330,7 @@ class FacturaController extends Controller
                 ]);
 
             // Actualizar el estado de las citas relacionadas: si todas sus historiales están facturados,
-            // marcar la cita como 'completada'. Esto evita dejar citas en 'pendiente' después de facturar.
+            // marcar la cita como 'atendida'. Esto evita dejar citas en 'pendiente' después de facturar.
             $citaIds = $historiales->pluck('cita_id')->unique()->filter();
             foreach ($citaIds as $citaId) {
                 if (!$citaId) continue;
@@ -341,7 +341,7 @@ class FacturaController extends Controller
                     })->exists();
 
                 if (!$tienePendientes) {
-                    \App\Models\Cita::where('id', $citaId)->update(['estado' => 'completada']);
+                    \App\Models\Cita::where('id', $citaId)->update(['estado' => 'atendida']);
                 }
             }
 
